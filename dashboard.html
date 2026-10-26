@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Energy Analytics Dashboard — Smart Electricity Analyzer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Energy Analytics Dashboard</h1>
+    <p class="page-subtitle">Real-time visibility into electricity consumption, bill estimation, and appliance ranking.</p>
+  </div>
+  <div style="display: flex; gap: 0.75rem; align-items: center;">
+    <a href="{{ url_for('savings_simulator_page') }}" class="btn btn-outline-emerald">
+      💡 Simulate Savings
+    </a>
+    <a href="{{ url_for('appliances_page') }}" class="btn btn-primary">
+      Manage Appliances
+    </a>
+  </div>
+</div>
+
+<!-- KPI Stats Grid -->
+<div class="stats-grid">
+  <!-- Card 1: Total kWh -->
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Total Consumption</span>
+      <div class="stat-icon">⚡</div>
+    </div>
+    <div class="stat-value" id="stat-total-kwh">-- kWh</div>
+    <div class="stat-meta" id="stat-daily-kwh">Avg -- kWh/day</div>
+  </div>
+
+  <!-- Card 2: Estimated Bill -->
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Estimated Bill</span>
+      <div class="stat-icon cyan">₹</div>
+    </div>
+    <div class="stat-value" id="stat-total-bill">₹ --</div>
+    <div class="stat-meta" id="stat-effective-rate">Effective: ₹-- / unit</div>
+  </div>
+
+  <!-- Card 3: Top Energy Hog -->
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Top Consumer</span>
+      <div class="stat-icon rose">🔥</div>
+    </div>
+    <div class="stat-value" id="stat-top-name" style="font-size: 1.35rem; line-height: 1.3;">Loading...</div>
+    <div class="stat-meta" id="stat-top-meta">--% of total energy</div>
+  </div>
+
+  <!-- Card 4: Carbon Footprint -->
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Carbon Footprint</span>
+      <div class="stat-icon amber">🌱</div>
+    </div>
+    <div class="stat-value" id="stat-co2">-- kg CO₂</div>
+    <div class="stat-meta" id="stat-trees">Requires ~-- trees/yr to offset</div>
+  </div>
+</div>
+
+<!-- Waste Alerts & Smart Recommendations -->
+<div id="alerts-container"></div>
+
+<!-- Charts Section 1: Appliance Share & Category Breakdown -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">🍩 Appliance-Wise Energy Share (%)</h3>
+      <span style="font-size: 0.8rem; color: var(--text-muted);">By Monthly kWh</span>
+    </div>
+    <div style="position: relative; height: 310px; display: flex; justify-content: center; align-items: center;">
+      <canvas id="applianceShareChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">📊 Category Consumption (kWh)</h3>
+      <span style="font-size: 0.8rem; color: var(--text-muted);">Cooling, Heating, Lighting, etc.</span>
+    </div>
+    <div style="position: relative; height: 310px;">
+      <canvas id="categoryChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Historical Consumption & Cost Trend Chart -->
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">📈 Historical Monthly Trend (Units & Bill Amount)</h3>
+    <a href="{{ url_for('reports_page') }}" class="btn btn-secondary btn-sm">View Full History</a>
+  </div>
+  <div style="position: relative; height: 300px;">
+    <canvas id="historyChart"></canvas>
+  </div>
+</div>
+
+<!-- Appliance Leaderboard Table -->
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">🏆 Appliance Energy Consumption Ranking</h3>
+    <a href="{{ url_for('appliances_page') }}" class="btn btn-outline-emerald btn-sm">+ Add or Edit Appliances</a>
+  </div>
+  <div class="table-responsive">
+    <table class="custom-table">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Appliance Name</th>
+          <th>Category</th>
+          <th>Power (Watts)</th>
+          <th>Qty</th>
+          <th>Usage (h/day)</th>
+          <th>Monthly Units</th>
+          <th>Share (%)</th>
+          <th>Est. Cost</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="appliance-table-body">
+        <tr>
+          <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading appliances data...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

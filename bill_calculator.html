@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Electricity Bill Calculator & Tariff Engine — Smart Electricity Analyzer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Electricity Bill Calculator & Tariff Engine</h1>
+    <p class="page-subtitle">Calculate electricity charges from meter readings or units, apply tiered slabs, and verify actual bill accuracy.</p>
+  </div>
+  <div style="display: flex; gap: 0.75rem;">
+    <button class="btn btn-secondary" onclick="loadFromRegisteredAppliances()">
+      📥 Auto-Fill Total from Appliances
+    </button>
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- Left Column: Input Form -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">⚙️ Meter & Tariff Parameters</h3>
+      <div style="display: flex; gap: 0.35rem;">
+        <button type="button" class="btn btn-outline-emerald btn-sm" id="btn-mode-readings" onclick="setMode('readings')">
+          Meter Readings
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-mode-units" onclick="setMode('units')">
+          Direct Units (kWh)
+        </button>
+      </div>
+    </div>
+
+    <!-- Mode 1: Meter Readings -->
+    <div id="section-readings">
+      <div class="grid-2" style="margin-bottom: 0;">
+        <div class="form-group">
+          <label class="form-label">Previous Meter Reading (kWh)</label>
+          <input type="number" class="form-control" id="prev-reading" value="2815" min="0" step="0.5" oninput="calculateUnitsFromReadings()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Current Meter Reading (kWh)</label>
+          <input type="number" class="form-control" id="curr-reading" value="3090" min="0" step="0.5" oninput="calculateUnitsFromReadings()">
+        </div>
+      </div>
+      <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: var(--radius-sm); padding: 0.75rem 1rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.85rem; color: var(--text-muted);">Calculated Difference (Current - Previous):</span>
+        <strong id="reading-diff-label" style="font-size: 1.15rem; color: var(--accent-emerald-light);">275.00 kWh</strong>
+      </div>
+    </div>
+
+    <!-- Mode 2: Direct Units -->
+    <div id="section-units" style="display: none;">
+      <div class="form-group">
+        <label class="form-label">Total Monthly Consumption (Units / kWh)</label>
+        <input type="number" class="form-control" id="direct-units" value="275" min="0" step="0.5" oninput="triggerRecalculation()">
+      </div>
+    </div>
+
+    <!-- Billing Period Label -->
+    <div class="form-group">
+      <label class="form-label">Billing Month / Period</label>
+      <input type="text" class="form-control" id="billing-period" value="November 2026" placeholder="e.g. November 2026">
+    </div>
+
+    <!-- Tariff Structure Selector -->
+    <div style="border-top: 1px solid var(--border-color); padding-top: 1.25rem; margin-top: 1rem;">
+      <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--text-main);">
+        Tariff Model & Rate Configuration
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tariff Structure</label>
+        <select class="form-control" id="tariff-type" onchange="toggleTariffType()">
+          <option value="slab" selected>Tiered Slabs (State Discom Model - e.g. 0-100, 101-300, etc.)</option>
+          <option value="flat">Single Flat Rate (Standard ₹ / kWh)</option>
+        </select>
+      </div>
+
+      <!-- Flat Rate Inputs -->
+      <div id="tariff-flat-fields" style="display: none;">
+        <div class="form-group">
+          <label class="form-label">Energy Charge Rate (₹ per kWh)</label>
+          <input type="number" class="form-control" id="flat-rate" value="7.0" min="1" step="0.25" oninput="triggerRecalculation()">
+        </div>
+      </div>
+
+      <!-- Slabs Configuration Table -->
+      <div id="tariff-slab-fields">
+        <label class="form-label">Active Slab Definitions</label>
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.75rem; margin-bottom: 0.75rem;">
+          <table style="width: 100%; font-size: 0.8rem; color: var(--text-muted);">
+            <thead>
+              <tr style="text-align: left; border-bottom: 1px solid var(--border-color);">
+                <th style="padding-bottom: 4px;">Slab Range (Units)</th>
+                <th style="padding-bottom: 4px;">Rate (₹/kWh)</th>
+              </tr>
+            </thead>
+            <tbody id="slab-preview-tbody">
+              <tr><td>0 - 100 kWh</td><td>₹3.75</td></tr>
+              <tr><td>101 - 300 kWh</td><td>₹6.50</td></tr>
+              <tr><td>301 - 500 kWh</td><td>₹8.75</td></tr>
+              <tr><td>Above 500 kWh</td><td>₹11.20</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Fixed Charges & Taxes -->
+      <div class="grid-2" style="margin-bottom: 0;">
+        <div class="form-group">
+          <label class="form-label">Fixed Monthly Charge (₹)</label>
+          <input type="number" class="form-control" id="fixed-charge" value="60.0" min="0" step="5" oninput="triggerRecalculation()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Electricity Duty / Tax (%)</label>
+          <input type="number" class="form-control" id="tax-percent" value="6.0" min="0" max="30" step="0.5" oninput="triggerRecalculation()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Actual Bill Comparison -->
+    <div style="border-top: 1px solid var(--border-color); padding-top: 1.25rem; margin-top: 1rem;">
+      <div class="form-group">
+        <label class="form-label">Actual Discom Bill Amount (₹) [Optional for Comparison]</label>
+        <input type="number" class="form-control" id="actual-bill" placeholder="Enter amount printed on your official bill" step="0.5" oninput="compareActualBill()">
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Calculated Bill Summary & Dissection -->
+  <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+    <!-- Main Result Card -->
+    <div class="card" style="border: 1px solid rgba(16, 185, 129, 0.4); background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, var(--bg-card) 100%);">
+      <div class="card-header">
+        <span class="stat-label">Estimated Bill Breakdown</span>
+        <span class="badge badge-category" id="bill-units-badge">275 Units</span>
+      </div>
+
+      <div style="text-align: center; padding: 1.5rem 0;">
+        <div style="font-size: 0.88rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Net Payable Amount</div>
+        <div id="result-total-bill" style="font-size: 3rem; font-weight: 800; color: #fff; letter-spacing: -0.03em; margin: 0.25rem 0;">₹2,075.50</div>
+        <div id="result-effective-rate" style="font-size: 0.88rem; color: var(--accent-emerald-light);">Effective Rate: ₹7.55 per kWh</div>
+      </div>
+
+      <!-- Bill Line Items -->
+      <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; flex-direction: column; gap: 0.65rem;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+          <span style="color: var(--text-muted);">Base Energy Charge:</span>
+          <strong id="result-energy-charge">₹1,897.50</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+          <span style="color: var(--text-muted);">Fixed Monthly Charge:</span>
+          <strong id="result-fixed-charge">₹60.00</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+          <span style="color: var(--text-muted);">Electricity Duty & Tax (<span id="result-tax-pct">6%</span>):</span>
+          <strong id="result-tax-amount">₹118.00</strong>
+        </div>
+      </div>
+
+      <!-- Actual vs Estimated Comparison Banner -->
+      <div id="comparison-banner" style="display: none; margin-top: 1.25rem; padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid transparent;">
+        <!-- Injected via JS -->
+      </div>
+
+      <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem;">
+        <button class="btn btn-primary" style="flex: 1;" onclick="saveCalculatedBill()">
+          💾 Save to Historical Records
+        </button>
+      </div>
+    </div>
+
+    <!-- Slab Breakdown Dissection -->
+    <div class="card" id="slab-breakdown-card">
+      <div class="card-header">
+        <h3 class="card-title">📑 Tiered Slab Dissection</h3>
+        <span style="font-size: 0.8rem; color: var(--text-muted);">How your consumption was charged</span>
+      </div>
+      <div class="table-responsive">
+        <table class="custom-table" style="font-size: 0.82rem;">
+          <thead>
+            <tr>
+              <th>Tier Range</th>
+              <th>Rate / Unit</th>
+              <th>Units in Tier</th>
+              <th>Cost (₹)</th>
+            </tr>
+          </thead>
+          <tbody id="slab-breakdown-tbody">
+            <!-- Injected via JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/bill_calculator.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Smart Electricity Bill & Energy Waste Analyzer{% endblock %}</title>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <!-- Navigation Header -->
+  <nav class="navbar">
+    <a href="{{ url_for('dashboard') }}" class="nav-brand">
+      <div class="brand-icon">⚡</div>
+      <div>
+        <span>VoltWise</span>
+        <span class="brand-tag">Smart Energy Analyzer</span>
+      </div>
+    </a>
+
+    <ul class="nav-links">
+      <li class="{% if active_page == 'dashboard' %}active{% endif %}">
+        <a href="{{ url_for('dashboard') }}">📊 Dashboard</a>
+      </li>
+      <li class="{% if active_page == 'appliances' %}active{% endif %}">
+        <a href="{{ url_for('appliances_page') }}">🔌 Appliances</a>
+      </li>
+      <li class="{% if active_page == 'bill_calculator' %}active{% endif %}">
+        <a href="{{ url_for('bill_calculator_page') }}">🧮 Bill Estimator</a>
+      </li>
+      <li class="{% if active_page == 'savings_simulator' %}active{% endif %}">
+        <a href="{{ url_for('savings_simulator_page') }}">💡 Savings Simulator</a>
+      </li>
+      <li class="{% if active_page == 'reports' %}active{% endif %}">
+        <a href="{{ url_for('reports_page') }}">📄 Reports & History</a>
+      </li>
+      <li class="{% if active_page == 'viva_guide' %}active{% endif %}">
+        <a href="{{ url_for('viva_guide_page') }}">🎓 Viva & Formulas</a>
+      </li>
+    </ul>
+
+    <div class="nav-actions">
+      <a href="{{ url_for('export_pdf') }}" class="btn btn-secondary btn-sm" title="Download Audit PDF Report">
+        📥 Export PDF
+      </a>
+      <a href="{{ url_for('appliances_page') }}#add" class="btn btn-primary btn-sm">
+        + Add Appliance
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content Area -->
+  <main class="main-container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <strong>Smart Electricity Bill & Energy Waste Analyzer</strong> — Computer Engineering Project
+      </div>
+      <div>
+        Formula: <code style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px;">kWh = (Watts × Hours × Days × Qty) ÷ 1000</code>
+      </div>
+      <div>
+        <a href="{{ url_for('viva_guide_page') }}">Viva Voce Prep</a> • <a href="{{ url_for('export_csv') }}">Export CSV</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Core Javascript Utility -->
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

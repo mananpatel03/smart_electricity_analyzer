@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Energy Waste & Savings Analyzer — Smart Electricity Analyzer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Energy Waste & Savings Analyzer</h1>
+    <p class="page-subtitle">Test "What-If" energy conservation scenarios, simulate usage reductions, and forecast annual savings.</p>
+  </div>
+  <div>
+    <a href="{{ url_for('export_pdf') }}" class="btn btn-outline-emerald">
+      📄 Export Recommendations PDF
+    </a>
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- Left Side: Simulator Controls -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">🎛️ Interactive Usage Reduction Simulator</h3>
+      <span class="badge badge-category">Simulation Engine</span>
+    </div>
+
+    <!-- Appliance Selector -->
+    <div class="form-group">
+      <label class="form-label">Select Appliance to Optimize *</label>
+      <select class="form-control" id="sim-appliance-select" onchange="onSelectAppliance()">
+        <option value="">-- Choose registered appliance --</option>
+      </select>
+    </div>
+
+    <!-- Current Usage Profile Card -->
+    <div id="sim-current-profile" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1rem; margin-bottom: 1.25rem; display: none;">
+      <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 0.5rem;">Current Baseline Profile</div>
+      <div class="grid-3" style="margin-bottom: 0;">
+        <div>
+          <span style="font-size: 0.75rem; color: var(--text-dim);">Rated Power</span>
+          <div id="curr-watts-label" style="font-weight: 700;">-- W</div>
+        </div>
+        <div>
+          <span style="font-size: 0.75rem; color: var(--text-dim);">Daily Usage</span>
+          <div id="curr-hours-label" style="font-weight: 700;">-- hrs/day</div>
+        </div>
+        <div>
+          <span style="font-size: 0.75rem; color: var(--text-dim);">Quantity</span>
+          <div id="curr-qty-label" style="font-weight: 700;">--</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slider 1: Reduce Hours -->
+    <div class="form-group">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+        <label class="form-label" style="margin-bottom: 0;">Reduce Daily Usage By</label>
+        <span id="slider-reduce-label" style="font-weight: 700; color: var(--accent-emerald-light);">1.0 hour / day</span>
+      </div>
+      <input type="range" class="range-slider" id="sim-reduce-slider" min="0.5" max="8" step="0.5" value="1.0" oninput="onSliderChange()">
+      <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">
+        <span>30 mins</span>
+        <span>1 hr</span>
+        <span>2 hrs</span>
+        <span>4 hrs</span>
+        <span>8 hrs</span>
+      </div>
+    </div>
+
+    <!-- Upgrade Toggle (Efficiency Replacement) -->
+    <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+        <div>
+          <strong style="font-size: 0.92rem;">Simulate Appliance Efficiency Upgrade</strong>
+          <div style="font-size: 0.78rem; color: var(--text-dim);">e.g., Switch to 5-Star Inverter, 28W BLDC, or 9W LED</div>
+        </div>
+        <input type="checkbox" id="sim-upgrade-check" style="width: 18px; height: 18px; accent-color: var(--accent-emerald);" onchange="onUpgradeToggle()">
+      </div>
+
+      <div id="sim-upgrade-fields" style="display: none;">
+        <div class="form-group">
+          <label class="form-label">New Upgraded Appliance Wattage (W)</label>
+          <input type="number" class="form-control" id="sim-new-watts" placeholder="e.g. 28 for BLDC Fan" min="1" step="1" oninput="runSimulation()">
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 1.25rem;">
+      <button class="btn btn-outline-emerald" style="width: 100%;" onclick="runSimulation()">
+        ⚡ Calculate Potential Savings
+      </button>
+    </div>
+  </div>
+
+  <!-- Right Side: Side-by-Side Impact & Financial ROI -->
+  <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+    <!-- Projected Savings Card -->
+    <div class="card" style="border: 1px solid rgba(16, 185, 129, 0.4); background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, var(--bg-card) 100%);">
+      <div class="card-header">
+        <span class="stat-label">Projected Conservation Impact</span>
+        <span class="badge badge-rank-1" id="savings-badge">Estimated Savings</span>
+      </div>
+
+      <div class="grid-2" style="margin-bottom: 1rem; text-align: center;">
+        <div style="background: rgba(0,0,0,0.25); border-radius: var(--radius-sm); padding: 1.25rem;">
+          <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Monthly Savings</div>
+          <div id="result-saved-cost-month" style="font-size: 2.25rem; font-weight: 800; color: var(--accent-emerald-light); margin: 0.25rem 0;">₹ --</div>
+          <div id="result-saved-kwh-month" style="font-size: 0.85rem; color: var(--text-dim);">-- kWh reduced</div>
+        </div>
+
+        <div style="background: rgba(0,0,0,0.25); border-radius: var(--radius-sm); padding: 1.25rem;">
+          <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Annual Accumulated Savings</div>
+          <div id="result-saved-cost-year" style="font-size: 2.25rem; font-weight: 800; color: #fff; margin: 0.25rem 0;">₹ --</div>
+          <div style="font-size: 0.85rem; color: var(--accent-cyan);">12-Month Financial ROI</div>
+        </div>
+      </div>
+
+      <!-- Before vs After Comparison Grid -->
+      <div style="background: var(--bg-secondary); border-radius: var(--radius-sm); padding: 1rem; border: 1px solid var(--border-color);">
+        <table style="width: 100%; font-size: 0.85rem;">
+          <thead>
+            <tr style="color: var(--text-muted); border-bottom: 1px solid var(--border-color); text-align: left;">
+              <th style="padding-bottom: 6px;">Metric</th>
+              <th style="padding-bottom: 6px;">Original Usage</th>
+              <th style="padding-bottom: 6px;">Optimized Usage</th>
+              <th style="padding-bottom: 6px; color: var(--accent-emerald-light);">Difference</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 6px 0;">Operating Power</td>
+              <td id="comp-old-watts">-- W</td>
+              <td id="comp-new-watts">-- W</td>
+              <td id="comp-diff-watts" style="color: var(--accent-emerald-light);">--</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0;">Daily Run Time</td>
+              <td id="comp-old-hours">-- hrs</td>
+              <td id="comp-new-hours">-- hrs</td>
+              <td id="comp-diff-hours" style="color: var(--accent-emerald-light);">--</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0;">Monthly Energy</td>
+              <td id="comp-old-kwh">-- kWh</td>
+              <td id="comp-new-kwh">-- kWh</td>
+              <td id="comp-diff-kwh" style="color: var(--accent-emerald-light); font-weight: 700;">--</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Environmental Savings Badge -->
+      <div style="display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); padding: 0.75rem 1rem; border-radius: var(--radius-sm);">
+        <span style="font-size: 1.5rem;">🌱</span>
+        <div>
+          <div style="font-weight: 700; font-size: 0.88rem; color: #d1fae5;">
+            Carbon Cut: <span id="co2-cut-label">-- kg CO₂ / year</span>
+          </div>
+          <div style="font-size: 0.78rem; color: var(--text-muted);">
+            Equivalent to planting mature carbon-absorbing trees.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tailored Smart Recommendations Engine -->
+<div class="card" style="margin-top: 1.5rem;">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">💡 Actionable Energy Conservation Tips</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
+        Curated recommendations automatically derived from your registered appliances.
+      </p>
+    </div>
+  </div>
+
+  <div class="grid-3" id="tips-container">
+    <div style="color: var(--text-muted); padding: 1.5rem;">Loading smart suggestions...</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/savings_simulator.js') }}"></script>
+{% endblock %}

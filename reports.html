@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}Reports & Historical Analytics — Smart Electricity Analyzer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Reports & Historical Analytics</h1>
+    <p class="page-subtitle">Track month-over-month consumption trends, log utility bills, and export comprehensive audit reports.</p>
+  </div>
+  <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+    <a href="{{ url_for('export_pdf') }}" class="btn btn-primary">
+      📥 Download Audit PDF
+    </a>
+    <a href="{{ url_for('export_csv') }}" class="btn btn-secondary">
+      📊 Export CSV Data
+    </a>
+    <button class="btn btn-outline-emerald" onclick="openNewRecordModal()">
+      + Log Past Bill
+    </button>
+  </div>
+</div>
+
+<!-- Historical Comparison Table -->
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">📅 Historical Billing Periods & Verifications</h3>
+    <span style="font-size: 0.85rem; color: var(--text-muted);">{{ records|length }} records logged</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="custom-table">
+      <thead>
+        <tr>
+          <th>Period</th>
+          <th>Prev Meter</th>
+          <th>Curr Meter</th>
+          <th>Units (kWh)</th>
+          <th>Tariff (₹/u)</th>
+          <th>Estimated Bill</th>
+          <th>Actual Bill</th>
+          <th>Deviation</th>
+          <th>Notes</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if records %}
+          {% for r in records %}
+            {% set diff = (r.actual_amount - r.estimated_amount) if r.actual_amount else 0 %}
+            <tr>
+              <td><strong>{{ r.billing_period }}</strong></td>
+              <td>{{ r.prev_reading if r.prev_reading > 0 else '-' }}</td>
+              <td>{{ r.curr_reading if r.curr_reading > 0 else '-' }}</td>
+              <td><strong>{{ r.units_consumed }}</strong> <span style="font-size: 0.75rem; color: var(--text-dim);">kWh</span></td>
+              <td>₹{{ "%.2f"|format(r.tariff_rate) }}</td>
+              <td>₹{{ "%.2f"|format(r.estimated_amount) }}</td>
+              <td>
+                {% if r.actual_amount %}
+                  <strong style="color: #fff;">₹{{ "%.2f"|format(r.actual_amount) }}</strong>
+                {% else %}
+                  <span style="color: var(--text-dim);">-</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if r.actual_amount %}
+                  {% if diff > 10 %}
+                    <span class="badge" style="background: rgba(244,63,94,0.15); color: var(--accent-rose);">+₹{{ "%.1f"|format(diff) }}</span>
+                  {% elif diff < -10 %}
+                    <span class="badge" style="background: rgba(16,185,129,0.15); color: var(--accent-emerald-light);">-₹{{ "%.1f"|format(diff|abs) }}</span>
+                  {% else %}
+                    <span class="badge" style="background: rgba(6,182,212,0.15); color: var(--accent-cyan);">Matched</span>
+                  {% endif %}
+                {% else %}
+                  <span style="color: var(--text-dim);">-</span>
+                {% endif %}
+              </td>
+              <td style="font-size: 0.82rem; color: var(--text-muted); max-width: 200px;">{{ r.notes or '-' }}</td>
+              <td>
+                <button class="btn btn-danger btn-sm" onclick="deleteRecord({{ r.id }})" title="Delete record">🗑️</button>
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
+              No historical records logged yet. Click "+ Log Past Bill" or save one from the Bill Estimator.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: Log Past Bill -->
+<div class="modal-backdrop" id="recordModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 class="card-title">+ Log Past Utility Bill</h3>
+      <button class="modal-close" onclick="closeRecordModal()">&times;</button>
+    </div>
+
+    <form id="recordForm" onsubmit="handleRecordSubmit(event)">
+      <div class="form-group">
+        <label class="form-label">Billing Period *</label>
+        <input type="text" class="form-control" id="rec-period" required placeholder="e.g. October 2026">
+      </div>
+
+      <div class="grid-2" style="margin-bottom: 0;">
+        <div class="form-group">
+          <label class="form-label">Previous Meter Reading (optional)</label>
+          <input type="number" class="form-control" id="rec-prev" step="0.5" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Current Meter Reading (optional)</label>
+          <input type="number" class="form-control" id="rec-curr" step="0.5" placeholder="0">
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom: 0;">
+        <div class="form-group">
+          <label class="form-label">Units Consumed (kWh) *</label>
+          <input type="number" class="form-control" id="rec-units" required step="0.5" placeholder="e.g. 250">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Actual Bill Paid (₹) *</label>
+          <input type="number" class="form-control" id="rec-actual" required step="0.5" placeholder="e.g. 1920">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Notes / Seasonal Observation</label>
+        <input type="text" class="form-control" id="rec-notes" placeholder="e.g. Festival lighting, guests stayed over">
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+        <button type="button" class="btn btn-secondary" onclick="closeRecordModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Historical Record</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function openNewRecordModal() {
+  document.getElementById('recordForm').reset();
+  document.getElementById('recordModal').classList.add('open');
+}
+
+function closeRecordModal() {
+  document.getElementById('recordModal').classList.remove('open');
+}
+
+async function handleRecordSubmit(e) {
+  e.preventDefault();
+  const units = parseFloat(document.getElementById('rec-units').value);
+  const actual = parseFloat(document.getElementById('rec-actual').value);
+  const prev = parseFloat(document.getElementById('rec-prev').value) || 0;
+  const curr = parseFloat(document.getElementById('rec-curr').value) || 0;
+  const period = document.getElementById('rec-period').value;
+  const notes = document.getElementById('rec-notes').value;
+
+  // Compute estimated amount based on baseline 7.0/unit
+  const est = units * 7.0 + 60.0;
+
+  const payload = {
+    billing_period: period,
+    prev_reading: prev,
+    curr_reading: curr,
+    units_consumed: units,
+    tariff_rate: 7.0,
+    fixed_charge: 60.0,
+    tax_amount: est * 0.06,
+    estimated_amount: est * 1.06,
+    actual_amount: actual,
+    notes: notes
+  };
+
+  try {
+    const res = await fetch('/api/save-bill-record', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Failed to save');
+    showToast(data.message);
+    setTimeout(() => window.location.reload(), 700);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteRecord(id) {
+  if (!confirm('Are you sure you want to delete this historical record?')) return;
+  try {
+    const res = await fetch(`/api/bill-record/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    showToast(data.message);
+    setTimeout(() => window.location.reload(), 600);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+</script>
+{% endblock %}

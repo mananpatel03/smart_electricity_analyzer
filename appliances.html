@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block title %}Appliance Energy Calculator & Manager — Smart Electricity Analyzer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Appliance Energy Calculator & Manager</h1>
+    <p class="page-subtitle">Configure wattage, operating hours, standby draw, and evaluate individual appliance consumption.</p>
+  </div>
+  <div style="display: flex; gap: 0.75rem;">
+    <button class="btn btn-outline-emerald" onclick="openPresetModal()">
+      ⚡ Quick-Add from Presets
+    </button>
+    <button class="btn btn-primary" onclick="openAddModal()">
+      + Custom Appliance
+    </button>
+  </div>
+</div>
+
+<!-- Interactive Energy Calculator Showcase (Matching Prompt Spec 4) -->
+<div class="card" style="border: 1px solid rgba(16, 185, 129, 0.35); background: linear-gradient(180deg, rgba(16, 185, 129, 0.05) 0%, var(--bg-card) 100%);">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">🔬 Instant Interactive Energy Calculator</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
+        Test any appliance rating in real-time. Formula: <code>(Watts × Hours × Days × Qty) ÷ 1,000</code>
+      </p>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="resetDemoCalculator()">Reset Example</button>
+  </div>
+
+  <div class="grid-2" style="align-items: center; margin-bottom: 0;">
+    <!-- Inputs with Range Sliders & Number inputs -->
+    <div style="display: flex; flex-direction: column; gap: 1rem;">
+      <div class="form-group" style="margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between;">
+          <label class="form-label">Power per Appliance (Watts)</label>
+          <span id="demo-watts-val" style="font-weight: 700; color: var(--accent-emerald-light);">75 W</span>
+        </div>
+        <input type="range" class="range-slider" id="demo-watts" min="5" max="3000" step="5" value="75" oninput="updateDemoCalc()">
+        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-dim); margin-top: 2px;">
+          <span>5 W (LED)</span>
+          <span>500 W</span>
+          <span>1,500 W</span>
+          <span>3,000 W (Heater)</span>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between;">
+          <label class="form-label">Usage per Day (Hours)</label>
+          <span id="demo-hours-val" style="font-weight: 700; color: var(--accent-emerald-light);">8 hours</span>
+        </div>
+        <input type="range" class="range-slider" id="demo-hours" min="0.5" max="24" step="0.5" value="8" oninput="updateDemoCalc()">
+        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-dim); margin-top: 2px;">
+          <span>30 min</span>
+          <span>8 hours</span>
+          <span>16 hours</span>
+          <span>24 hours</span>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom: 0; gap: 1rem;">
+        <div>
+          <label class="form-label">Quantity</label>
+          <input type="number" class="form-control" id="demo-qty" min="1" max="50" value="2" oninput="updateDemoCalc()">
+        </div>
+        <div>
+          <label class="form-label">Days per Month</label>
+          <input type="number" class="form-control" id="demo-days" min="1" max="31" value="30" oninput="updateDemoCalc()">
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Electricity Tariff Rate (₹ per kWh)</label>
+        <input type="number" class="form-control" id="demo-rate" min="1" max="30" step="0.5" value="7.0" oninput="updateDemoCalc()">
+      </div>
+    </div>
+
+    <!-- Live Output Card -->
+    <div style="background: rgba(11, 19, 32, 0.7); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.75rem; display: flex; flex-direction: column; gap: 1.25rem;">
+      <div>
+        <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Calculated Monthly Energy</div>
+        <div id="demo-kwh-result" style="font-size: 2.25rem; font-weight: 800; color: #fff; margin-top: 0.25rem;">36.00 kWh</div>
+        <div id="demo-daily-result" style="font-size: 0.82rem; color: var(--text-dim);">1.20 kWh daily</div>
+      </div>
+
+      <div style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
+        <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Estimated Monthly Cost</div>
+        <div id="demo-cost-result" style="font-size: 2.25rem; font-weight: 800; color: var(--accent-emerald-light); margin-top: 0.25rem;">₹252.00</div>
+        <div style="font-size: 0.82rem; color: var(--text-dim);">Based on ₹7.00/kWh flat rate (excludes fixed charges)</div>
+      </div>
+
+      <button class="btn btn-outline-emerald btn-sm" onclick="addDemoAsCustomAppliance()">
+        ➕ Save As My Appliance
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Category Filters & Summary Toolbar -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+  <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;" id="category-filter-buttons">
+    <button class="btn btn-secondary btn-sm active-filter" onclick="filterCategory('All', this)">All Appliances</button>
+    <button class="btn btn-secondary btn-sm" onclick="filterCategory('Cooling', this)">❄️ Cooling</button>
+    <button class="btn btn-secondary btn-sm" onclick="filterCategory('Kitchen', this)">🍳 Kitchen</button>
+    <button class="btn btn-secondary btn-sm" onclick="filterCategory('Lighting', this)">💡 Lighting</button>
+    <button class="btn btn-secondary btn-sm" onclick="filterCategory('Computing', this)">💻 Computing</button>
+    <button class="btn btn-secondary btn-sm" onclick="filterCategory('Heating', this)">🔥 Heating</button>
+    <button class="btn btn-secondary btn-sm" onclick="filterCategory('Entertainment', this)">📺 Media</button>
+  </div>
+  <div style="font-size: 0.9rem; color: var(--text-muted);" id="appliances-count-summary">
+    Showing registered appliances
+  </div>
+</div>
+
+<!-- Main Registered Appliances Table -->
+<div class="card">
+  <div class="table-responsive">
+    <table class="custom-table">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Appliance</th>
+          <th>Category</th>
+          <th>Watts</th>
+          <th>Qty</th>
+          <th>Active Hours</th>
+          <th>Standby</th>
+          <th>Monthly kWh</th>
+          <th>Share</th>
+          <th>Est. Cost</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="appliances-list-body">
+        <tr>
+          <td colspan="11" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">Loading appliances...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MODAL: Add / Edit Appliance -->
+<div class="modal-backdrop" id="applianceModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 class="card-title" id="modalTitle">+ Add New Appliance</h3>
+      <button class="modal-close" onclick="closeApplianceModal()">&times;</button>
+    </div>
+
+    <form id="applianceForm" onsubmit="handleApplianceSubmit(event)">
+      <input type="hidden" id="edit-id" value="">
+      
+      <div class="form-group">
+        <label class="form-label">Appliance Name *</label>
+        <input type="text" class="form-control" id="app-name" required placeholder="e.g. Master Bedroom Inverter AC">
+      </div>
+
+      <div class="grid-2" style="margin-bottom: 0;">
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select class="form-control" id="app-category">
+            <option value="Cooling">Cooling (AC, Fan, Cooler)</option>
+            <option value="Kitchen">Kitchen (Fridge, Microwave, Oven)</option>
+            <option value="Lighting">Lighting (LED, Tube Light)</option>
+            <option value="Computing">Computing (PC, Laptop, Router)</option>
+            <option value="Heating">Heating (Geyser, Room Heater)</option>
+            <option value="Entertainment">Entertainment (TV, Soundbar)</option>
+            <option value="Laundry">Laundry (Washing Machine, Dryer)</option>
+            <option value="General">General / Others</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Rated Power (Watts) *</label>
+          <input type="number" class="form-control" id="app-watts" required min="1" step="0.5" placeholder="e.g. 75">
+        </div>
+      </div>
+
+      <div class="grid-3" style="margin-bottom: 0;">
+        <div class="form-group">
+          <label class="form-label">Quantity *</label>
+          <input type="number" class="form-control" id="app-qty" required min="1" max="100" value="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Active Hours/Day *</label>
+          <input type="number" class="form-control" id="app-hours" required min="0.1" max="24" step="0.1" value="6">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Days/Month</label>
+          <input type="number" class="form-control" id="app-days" required min="1" max="31" value="30">
+        </div>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.03); border: 1px dashed var(--border-color); border-radius: var(--radius-sm); padding: 0.95rem; margin-bottom: 1.25rem;">
+        <div style="font-weight: 600; font-size: 0.85rem; color: var(--accent-cyan); margin-bottom: 0.5rem;">
+          🔌 Standby / Vampire Power (Optional)
+        </div>
+        <div class="grid-2" style="margin-bottom: 0;">
+          <div>
+            <label class="form-label" style="font-size: 0.78rem;">Standby Watts (plugged in idle)</label>
+            <input type="number" class="form-control" id="app-standby-watts" min="0" step="0.5" value="0">
+          </div>
+          <div>
+            <label class="form-label" style="font-size: 0.78rem;">Standby Hours/Day</label>
+            <input type="number" class="form-control" id="app-standby-hours" min="0" max="24" step="0.5" value="0">
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button type="button" class="btn btn-secondary" onclick="closeApplianceModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save Appliance</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: Presets Library -->
+<div class="modal-backdrop" id="presetModal">
+  <div class="modal-card" style="max-width: 800px;">
+    <div class="modal-header">
+      <div>
+        <h3 class="card-title">⚡ Standard Appliance Presets Library</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
+          Select common household appliances with calibrated wattage ratings.
+        </p>
+      </div>
+      <button class="modal-close" onclick="closePresetModal()">&times;</button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0.95rem; max-height: 55vh; overflow-y: auto; padding-right: 4px;">
+      {% for p in presets %}
+      <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1rem; cursor: pointer; transition: var(--transition);"
+           onmouseover="this.style.borderColor='#10b981'" onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'"
+           onclick='usePreset({{ p|tojson }})'>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.35rem;">
+          <strong style="font-size: 0.92rem;">{{ p.name }}</strong>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem;">
+          <span class="badge badge-category" style="font-size: 0.7rem;">{{ p.category }}</span>
+          <span style="font-size: 0.8rem; font-weight: 700; color: var(--accent-emerald-light);">{{ p.watts }} W</span>
+        </div>
+        <div style="font-size: 0.78rem; color: var(--text-dim);">
+          Typical usage: {{ p.hours }} hrs/day
+          {% if p.standby_watts > 0 %}
+          • {{ p.standby_watts }}W standby
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/appliances.js') }}"></script>
+{% endblock %}
